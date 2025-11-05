@@ -14,7 +14,7 @@ import {
 } from "three";
 import Loader from "./Loader";
 import NPC from "./NPC";
-
+import Nebula from "three-nebula"
 
 class Player extends Object3D {
     radius = 0.5;
@@ -174,15 +174,15 @@ class Player extends Object3D {
         // Adiciona à cena (independente do player)
         scene.add(bulletMesh);
 
+
+
         // Salva a bala com a direção fixa
         this.activeBullets.push({
             mesh: bulletMesh,
             direction: direction.clone(),
             distance: 0
         });
-    }
-
-
+    }   
     
     update(delta: number, npcs?: Mesh[]) {
 
