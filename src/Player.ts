@@ -15,7 +15,7 @@ import {
 } from "three";
 import Loader from "./Loader";
 import NPC from "./NPC";
-import GUI from "three/examples/jsm/libs/lil-gui.module.min.js";
+import { DebugGUI } from "./Debug";
 
 class Player extends Object3D {
     radius = 0.5;
@@ -236,7 +236,7 @@ class Player extends Object3D {
 
     setWeapon() {
         this.isLoadedModel.then(async () => {
-            let gltf = await this.loader.loader.loadAsync("models/rifle.glb");
+            let gltf = await this.loader.loader.loadAsync("models/shotgun.glb");
             this.handObject = gltf.scene;
             this.handObject.name = "rifle";
 
@@ -244,20 +244,23 @@ class Player extends Object3D {
             if (handBone) {
                 this.handObject.position.set(0, 0, 0);
                 this.handObject.rotation.set(0, 0, 0);
-                this.handObject.scale.set(0.06, 0.06, 0.06);
+                this.handObject.scale.set(0.3, 0.3, 0.3);
 
                 handBone.attach(this.handObject);
-                this.handObject.position.set(0.05, 0.23, 0.05);
-                this.handObject.rotation.set(1.753, Math.PI, 1.521);
+                this.handObject.position.set(8.2, 0.3, -0.4);
+                this.handObject.rotation.set(0.2827, -Math.PI, 1.521);
 
-                const f = new GUI().addFolder("Weapon");
-                f.add(this.handObject.position, "x", -50, 50, 0.1);
-                f.add(this.handObject.position, "y", -50, 50, 0.1);
-                f.add(this.handObject.position, "z", -50, 50, 0.1);
+     
+                
+                const gwp = DebugGUI.addFolder("Weapon Position");
+                gwp.add(this.handObject.position, "x", -50, 50, 0.1,);
+                gwp.add(this.handObject.position, "y", -50, 50, 0.1);
+                gwp.add(this.handObject.position, "z", -50, 50, 0.1);
 
-                f.add(this.handObject.rotation, "x", -Math.PI, Math.PI);
-                f.add(this.handObject.rotation, "y", -Math.PI, Math.PI);
-                f.add(this.handObject.rotation, "z", -Math.PI, Math.PI);
+                const gwr = DebugGUI.addFolder("Weapon Rotation");
+                gwr.add(this.handObject.rotation, "x", -Math.PI, Math.PI);
+                gwr.add(this.handObject.rotation, "y", -Math.PI, Math.PI);
+                gwr.add(this.handObject.rotation, "z", -Math.PI, Math.PI);
 
                 this.handObject.visible = true;
             }

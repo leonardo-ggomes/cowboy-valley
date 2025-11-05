@@ -1,5 +1,6 @@
 import { Euler, Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from "three"
-import GUI from "three/examples/jsm/libs/lil-gui.module.min.js"
+import { DebugGUI } from "./Debug"
+
 
 class Camera {
     perspectiveCamera: PerspectiveCamera
@@ -33,6 +34,16 @@ class Camera {
 
         // Opcional: zoom com roda do mouse
         document.addEventListener("wheel", this.onMouseWheel)
+            
+        const gcam = DebugGUI.addFolder("Camera Position");
+        gcam.add(this.perspectiveCamera.position, "x", -50, 50, 0.1,);
+        gcam.add(this.perspectiveCamera.position, "y", -50, 50, 0.1);
+        gcam.add(this.perspectiveCamera.position, "z", -50, 50, 0.1);
+
+        const goffest = DebugGUI.addFolder("Camera Offest");
+        goffest.add(this.offset, "x", -50, 50, 0.1,);
+        goffest.add(this.offset, "y", -50, 50, 0.1);
+        goffest.add(this.offset, "z", -50, 50, 0.1);
     }
 
     onMouseMove = (e: MouseEvent) => {
