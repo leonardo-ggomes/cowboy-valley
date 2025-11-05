@@ -11,7 +11,6 @@ import {
     CylinderGeometry,
     LoopRepeat,
     Quaternion,
-    MathUtils
 } from "three";
 import Loader from "./Loader";
 import NPC from "./NPC";
@@ -150,47 +149,39 @@ class Player extends Object3D {
      
     }
 
-
-
     shoot(scene: Scene) {
         const bulletGeo = new CylinderGeometry(0.05, 0.05, 0.3, 8);
         const bulletMat = new MeshBasicMaterial({ color: 0xffd700 });
         const bulletMesh = new Mesh(bulletGeo, bulletMat);
         bulletMesh.rotation.x = Math.PI / 2;
 
-        // 1️⃣ Pegamos o objeto da arma
         const rifle = this.model?.getObjectByName("rifle");
+        if (!rifle) return;
 
-
-        // 2️⃣ Criar um ponto no local do cano (exemplo: ponta da arma)
-        const muzzleLocal = new Vector3(0, 0, .5); // depende do modelo, ajuste até ficar no cano
+        //  Posição inicial da bala (cano do rifle)
+        const muzzleLocal = new Vector3(0, 0, 0.5);
         const muzzleWorld = muzzleLocal.clone();
-        rifle?.localToWorld(muzzleWorld);
-
-        // 3️⃣ Posicionar a bala na ponta do cano
+        rifle.localToWorld(muzzleWorld);
         bulletMesh.position.copy(muzzleWorld);
 
-        const weaponDir = new Vector3(0, 0, 1);
-        const worldQuat = new Quaternion();
-        rifle?.getWorldQuaternion(worldQuat); // ✅ retorna um Quaternion real
-        weaponDir.applyQuaternion(worldQuat); // ✅ aplica rotação correta
+        //  Direção fixa da bala (para onde o player está olhando no momento do tiro)
+        const direction = new Vector3(0, 0, 1); // frente
+        const playerQuat = new Quaternion();
+        this.getWorldQuaternion(playerQuat); // rotação global do player
+        direction.applyQuaternion(playerQuat);
+        direction.normalize();
 
-
-        const correction = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), MathUtils.degToRad(-6));
-        weaponDir.applyQuaternion(correction);
-
-        weaponDir.normalize();
-        // 5️⃣ Adiciona à cena
+        // Adiciona à cena (independente do player)
         scene.add(bulletMesh);
 
-        // 6️⃣ Salva com direção correta
+        // Salva a bala com a direção fixa
         this.activeBullets.push({
             mesh: bulletMesh,
-            direction: weaponDir,
+            direction: direction.clone(),
             distance: 0
         });
-
     }
+
 
     
     update(delta: number, npcs?: Mesh[]) {
@@ -278,7 +269,6 @@ class Player extends Object3D {
         this.handleObject.rotation.set(rotation.x, rotation.y, rotation.z);
         this.handleObject.visible = visible;
     }
-
 
     placeWeaponAtHand(visible = true) {
         this.moveWeaponTo(

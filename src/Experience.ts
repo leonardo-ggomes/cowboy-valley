@@ -84,7 +84,9 @@ class Experience {
 
         window.addEventListener("mousedown", (event) => {
             if (event.button === 0) {
-                this.player.isShooting = true
+                if(this.player.states.isArmed && this.player.currentState == "IdleRifle"){                
+                    this.player.isShooting = true
+                }                
             }
         });
 
