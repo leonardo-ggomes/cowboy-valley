@@ -35,10 +35,14 @@ class Player extends Object3D {
     raycaster = new Raycaster();
     down = new Vector3(0, 0, -1);
 
-    isAttacking = false;
+   
     attackCooldown = 0.15;
     attackTimer = 0;
     isShooting = false;
+    states = {
+        isArmed: false,
+        isAttacking : false
+    }
 
     lastAction = "Idle";
     isLoadedModel: Promise<void>;
@@ -56,6 +60,18 @@ class Player extends Object3D {
         this.isLoadedModel = this.loadModel();
 
         this.setWeapon();
+
+        window.addEventListener("keypress", (e) => this.changeStateKeyboard(e))
+    }
+
+    changeStateKeyboard(e: KeyboardEvent){
+        const code = e.key.toUpperCase()
+        
+        if(code === "P"){
+            const isArmed = this.states.isArmed
+            this.states.isArmed = !isArmed
+        }
+
     }
 
     async loadModel() {
@@ -104,9 +120,9 @@ class Player extends Object3D {
     }
 
     attack(scene: Scene) {
-        if (this.isAttacking) return;
+        if (this.states.isAttacking) return;
 
-        this.isAttacking = true;
+        this.states.isAttacking = true;
         const action = this.setState("FireRifle", 1.0);
         if (!action) return;
 

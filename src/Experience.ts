@@ -30,7 +30,7 @@ class Experience {
     playerDirection = new Vector3()
     quaternion = new Quaternion()
     playerImpulse = new Vector3()
-    velocity = 1.4;
+    velocity = 1.4
     hit = false
     npcManager: NPCManager
 
@@ -91,7 +91,7 @@ class Experience {
         window.addEventListener("mouseup", (event) => {
             if (event.button === 0) {
                 this.player.isShooting = false
-                this.player.isAttacking = false
+                this.player.states.isAttacking = false
             }
         });
 
@@ -170,35 +170,31 @@ class Experience {
         const angle = Math.atan2(this.playerDirection.x, this.playerDirection.z)
         this.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), angle)
 
-        // Entrada do teclado (direção)
+        // Entrada do teclado (direção)     
+        this.player.lastAction = this.player.states.isArmed ? "IdleRifle" : "Idle"
+     
+        if (!this.player.states.isAttacking) {
 
-        if (!this.player.isAttacking) {
             if (this.keysPressed.has("w") && !this.keysPressed.has("shift")) {
                 this.playerImpulse.add(this.playerDirection.clone().multiplyScalar(this.velocity * 1.8 * delta))
                 this.player.setState("Walk", 1.0)
-                this.player.lastAction = "Idle"
             } else if (this.keysPressed.has("w") && this.keysPressed.has("shift")) {
                 this.playerImpulse.add(this.playerDirection.clone().multiplyScalar(this.velocity * 4 * delta))
                 this.player.setState("Running", 1.1)
-                this.player.lastAction = "Idle"
             } else if (this.keysPressed.has("s")) {
                 this.playerImpulse.add(this.playerDirection.clone().multiplyScalar(-this.velocity * 1.5 * delta))
                 this.player.setState("Backward", 1.0)
-                this.player.lastAction = "Idle"
             } else if (this.keysPressed.has("a")) {
                 const side = new Vector3(this.playerDirection.z, 0, -this.playerDirection.x)
                 this.playerImpulse.add(side.clone().multiplyScalar((this.velocity * 2) * delta))
                 this.player.setState("WalkLeft", 1.0)
-                this.player.lastAction = "Idle"
             } else if (this.keysPressed.has("d")) {
                 const side = new Vector3(-this.playerDirection.z, 0, this.playerDirection.x)
                 this.playerImpulse.add(side.clone().multiplyScalar((this.velocity * 2) * delta))
                 this.player.setState("WalkRight", 1.0)
-                this.player.lastAction = "Idle"
             }
             else if (this.player.isShooting) {
                 this.player.attack(this.mainScene.scene);
-                this.player.lastAction = "Idle";
             }
             else {              
                 this.player.setState(this.player.lastAction, 1.0)               

@@ -96,7 +96,7 @@ class Loader
                 this.loader.loadAsync("/models/cowboy@walking_right.glb"),               
                 this.loader.loadAsync("/models/cowboy@walking_left.glb"),               
                 this.loader.loadAsync("/models/cowboy@running.glb"),               
-                this.loader.loadAsync("/models/456@fire_rifle.glb"),       
+                this.loader.loadAsync("/models/cowboy@fire_rifle.glb"),       
             ]);
     
             this.globalAnimations = { 
@@ -106,7 +106,7 @@ class Loader
                 "WalkRight" : anims[3].animations[2],
                 "WalkLeft" : anims[4].animations[1],
                 "Running" : anims[5].animations[5],
-                "FireRifle" : anims[6].animations[0],               
+                "FireRifle" : anims[6].animations[1],               
             };
 
             resolve()

@@ -1,4 +1,5 @@
 import { Euler, Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from "three"
+import GUI from "three/examples/jsm/libs/lil-gui.module.min.js"
 
 class Camera {
     perspectiveCamera: PerspectiveCamera
