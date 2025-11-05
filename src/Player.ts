@@ -15,7 +15,7 @@ import {
 } from "three";
 import Loader from "./Loader";
 import NPC from "./NPC";
-import { DebugGUI } from "./Debug";
+
 
 class Player extends Object3D {
     radius = 0.5;
@@ -46,7 +46,7 @@ class Player extends Object3D {
 
     lastAction = "Idle";
     isLoadedModel: Promise<void>;
-    handObject: Object3D = new Object3D();
+    handleObject: Object3D = new Object3D();
     sceneUpdateCallbacks: Set<(delta: number) => void> = new Set();
 
     // Balas
@@ -58,18 +58,29 @@ class Player extends Object3D {
         super();
         this.loader = loader;
         this.isLoadedModel = this.loadModel();
-
-        this.setWeapon();
+        
+        this.setWeapon().then(() => {
+            this.placeWeaponAtSpine(true)
+        })
 
         window.addEventListener("keypress", (e) => this.changeStateKeyboard(e))
     }
 
-    changeStateKeyboard(e: KeyboardEvent){
+    async changeStateKeyboard(e: KeyboardEvent){
         const code = e.key.toUpperCase()
         
         if(code === "P"){
             const isArmed = this.states.isArmed
             this.states.isArmed = !isArmed
+
+            if(!isArmed)
+            {
+                this.placeWeaponAtHand(true)
+            }
+            else{
+                this.placeWeaponAtSpine(true)
+            }
+           
         }
 
     }
@@ -234,37 +245,57 @@ class Player extends Object3D {
         }
     }
 
-    setWeapon() {
-        this.isLoadedModel.then(async () => {
-            let gltf = await this.loader.loader.loadAsync("models/shotgun.glb");
-            this.handObject = gltf.scene;
-            this.handObject.name = "rifle";
+    async setWeapon() {
+        return await new Promise<void>((resolve) => {
+            this.isLoadedModel.then(async () => {
+                let gltf = await this.loader.loader.loadAsync("models/shotgun.glb");
+                this.handleObject = gltf.scene;
+                this.handleObject.name = "rifle";
 
-            const handBone = this.model?.getObjectByName("mixamorigRightHand");
-            if (handBone) {
-                this.handObject.position.set(0, 0, 0);
-                this.handObject.rotation.set(0, 0, 0);
-                this.handObject.scale.set(0.3, 0.3, 0.3);
+                resolve();
+            });
+        })       
+    }
 
-                handBone.attach(this.handObject);
-                this.handObject.position.set(8.2, 0.3, -0.4);
-                this.handObject.rotation.set(0.2827, -Math.PI, 1.521);
+    moveWeaponTo(boneName: string, position: Vector3, rotation: Vector3, visible = true) {
+        const bone = this.model?.getObjectByName(boneName);
+        if (!bone) return;
 
-     
-                
-                const gwp = DebugGUI.addFolder("Weapon Position");
-                gwp.add(this.handObject.position, "x", -50, 50, 0.1,);
-                gwp.add(this.handObject.position, "y", -50, 50, 0.1);
-                gwp.add(this.handObject.position, "z", -50, 50, 0.1);
+        // Remove do parent anterior (se houver)
+        if (this.handleObject.parent) {
+            this.handleObject.parent.remove(this.handleObject);
+        }
 
-                const gwr = DebugGUI.addFolder("Weapon Rotation");
-                gwr.add(this.handObject.rotation, "x", -Math.PI, Math.PI);
-                gwr.add(this.handObject.rotation, "y", -Math.PI, Math.PI);
-                gwr.add(this.handObject.rotation, "z", -Math.PI, Math.PI);
+        this.handleObject.position.set(0, 0, 0);
+        this.handleObject.rotation.set(0, 0, 0);
+        this.handleObject.scale.set(0.3, 0.3, 0.3);
 
-                this.handObject.visible = true;
-            }
-        });
+        // Adiciona ao novo osso
+        bone.attach(this.handleObject);
+
+        // Aplica transformações locais
+        this.handleObject.position.copy(position);
+        this.handleObject.rotation.set(rotation.x, rotation.y, rotation.z);
+        this.handleObject.visible = visible;
+    }
+
+
+    placeWeaponAtHand(visible = true) {
+        this.moveWeaponTo(
+            "mixamorigRightHand",
+            new Vector3(8.2, 0.3, -0.4),
+            new Vector3(0.2827, -Math.PI, 1.521),
+            visible
+        );
+    }
+
+    placeWeaponAtSpine(visible = true) {
+        this.moveWeaponTo(
+            "mixamorigSpine1",
+            new Vector3(14.4, -4.1, -21.3),
+            new Vector3(0.2073, Math.PI, 0.8230),
+            visible
+        );
     }
 
     setState(name: string, speed: number): AnimationAction | null {
