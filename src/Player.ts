@@ -90,7 +90,7 @@ void main(){
 // CONSTANTES
 // ─────────────────────────────────────────────────────────────────────────────
 const BULLET_POOL_SIZE = 30
-const BULLET_SPEED     = 90
+const BULLET_SPEED     = 220
 const BULLET_MAX_DIST  = 150
 const FIRE_COOLDOWN    = 0.85   // shotgun: tempo entre tiros
 const RELOAD_ANIM_TIME = 0.75   // duração visual da recarga no HUD

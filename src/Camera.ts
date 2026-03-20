@@ -11,13 +11,13 @@ export class Camera {
   perspectiveCamera: PerspectiveCamera
 
   yaw   = Math.PI
-  pitch = 0.35
+  pitch = 0.42
 
   distance    = 7
   minDistance = 3
   maxDistance = 14
 
-  focusOffset = new Vector3(0, 1.4, 0)
+  focusOffset = new Vector3(0, 1.9, 0)
 
   private positionSmoothFactor = 0.15
   private focusSmoothFactor    = 0.18
@@ -30,6 +30,20 @@ export class Camera {
   private rotationSpeed = 0.004
   isOrbiting = false
 
+  // ── Shoulder offset + Aim mode ─────────────────────────────────────────
+  // isArmed: câmera desloca para o ombro direito
+  // isAiming (botão direito + armado): zoom in + FOV reduzido + mira precisa
+  isArmed  = false
+  isAiming = false   // botão direito pressionado COM arma
+
+  // Valores atuais (lerp-ados no update)
+  private _shoulderX   = 0      // deslocamento lateral atual
+
+  // Targets
+  private readonly SHOULDER_NORMAL = 0.7   // offset lateral quando armado
+  private readonly SHOULDER_AIM    = 0.4   // offset menor no aim mode (mais centrado)
+  private readonly DIST_NORMAL     = 7     // distância padrão
+
   private _raycaster    = new Raycaster()
   private _rawMovementX = 0
   private _rawMovementY = 0
@@ -39,17 +53,55 @@ export class Camera {
    * Quando a mira está dentro do raio: câmera parada.
    * Quando ultrapassa a borda: câmera gira proporcionalmente ao excesso.
    */
-  applyOvershoot(ox: number, oy: number) {
-    if (this.isOrbiting) return   // botão direito: câmera livre
-    if (Math.abs(ox) < 0.5 && Math.abs(oy) < 0.5) return  // sem excesso
+  /**
+   * Gira a câmera baseado na posição da mira.
+   *
+   * @param cx  posição atual da mira relativa ao centro (px)
+   * @param cy  posição atual da mira relativa ao centro (px)
+   * @param max raio máximo do crosshair (MAX_RANGE)
+   * @param ox  overshoot além da borda (excesso)
+   * @param oy  overshoot além da borda (excesso)
+   * @param delta delta time
+   *
+   * Modelo de duas zonas:
+   *  - Zona morta central (< DEAD_ZONE % do raio): câmera parada
+   *  - Zona progressiva: câmera gira proporcionalmente à distância do centro
+   *    com aceleração quadrática — suave perto do centro, rápida na borda
+   *  - Além da borda (overshoot): câmera gira pelo excesso direto
+   */
+  applyOvershoot(cx: number, cy: number, max: number, ox: number, oy: number, delta: number) {
+    if (this.isOrbiting) return
 
-    // Sensibilidade do overshoot — quanto o excesso gira a câmera
-    const SENSITIVITY = 0.003
-    this.yaw   -= ox * SENSITIVITY
-    this.pitch  = MathUtils.clamp(
-      this.pitch + oy * SENSITIVITY,
-      -0.35, 1.05
-    )
+    const DEAD_ZONE   = 0.55   // zona morta: 55% do raio sem rotação
+    const MAX_SPEED   = 0.55   // rad/s máximo na borda do raio
+    const OVERSHOOT_S = 0.001  // sensibilidade do excesso além da borda
+
+    // Normaliza posição da mira: 0 no centro, 1 na borda
+    const distNorm = Math.sqrt(cx * cx + cy * cy) / max
+
+    if (distNorm > DEAD_ZONE) {
+      // Zona progressiva: t vai de 0 (dead zone) até 1 (borda)
+      const t = (distNorm - DEAD_ZONE) / (1 - DEAD_ZONE)
+      // Aceleração quadrática: suave no começo, rápida na borda
+      const speed = MAX_SPEED * t * t
+
+      // Direção normalizada da mira
+      const len = Math.sqrt(cx * cx + cy * cy) || 1
+      this.yaw   -= (cx / len) * speed * delta
+      this.pitch  = MathUtils.clamp(
+        this.pitch + (cy / len) * speed * delta,
+        -0.35, 1.05
+      )
+    }
+
+    // Overshoot além da borda (excesso após clamp do crosshair)
+    if (Math.abs(ox) > 0.5 || Math.abs(oy) > 0.5) {
+      this.yaw   -= ox * OVERSHOOT_S
+      this.pitch  = MathUtils.clamp(
+        this.pitch + oy * OVERSHOOT_S,
+        -0.35, 1.05
+      )
+    }
   }
   private _camRaycaster = new Raycaster()
   private _collisionMeshes: Object3D[] = []
@@ -75,11 +127,22 @@ export class Camera {
     document.addEventListener('mousedown', (e: MouseEvent) => {
       if (e.button === 2) {
         e.preventDefault()
-        this.isOrbiting = true
+        if (this.isArmed) {
+          // Armado: aim mode (zoom in, não orbita)
+          this.isAiming  = true
+          this.isOrbiting = false
+        } else {
+          // Desarmado: órbita livre
+          this.isOrbiting = true
+          this.isAiming   = false
+        }
       }
     })
     document.addEventListener('mouseup', (e: MouseEvent) => {
-      if (e.button === 2) this.isOrbiting = false
+      if (e.button === 2) {
+        this.isOrbiting = false
+        this.isAiming   = false
+      }
     })
 
     document.addEventListener('mousemove', (e: MouseEvent) => {
@@ -91,7 +154,7 @@ export class Camera {
       if (this.isOrbiting) {
         this.yaw   -= e.movementX * this.rotationSpeed
         this.pitch  = MathUtils.clamp(
-          this.pitch - e.movementY * this.rotationSpeed,
+          this.pitch + e.movementY * this.rotationSpeed,
           -0.35, 1.05
         )
       } else {
@@ -113,6 +176,16 @@ export class Camera {
       this.perspectiveCamera.aspect = window.innerWidth / window.innerHeight
       this.perspectiveCamera.updateProjectionMatrix()
     })
+  }
+
+  setArmed(armed: boolean) {
+    this.isArmed = armed
+    if (!armed) this.isAiming = false
+  }
+
+  setAiming(aiming: boolean) {
+    // Aim mode só funciona quando armado
+    this.isAiming = aiming && this.isArmed
   }
 
   getForward(): Vector3 {
@@ -161,17 +234,33 @@ export class Camera {
   }
 
   update(target: Object3D, delta: number) {
-    const targetFocus = target.position.clone().add(this.focusOffset)
+    // ── Lerp shoulder offset ──────────────────────────────────────────────
+    // Zoom e FOV desabilitados — só shoulder offset muda entre estados
+    const lerpT = 1 - Math.pow(0.01, delta * 5)
+
+    const targetShoulder = this.isArmed ? this.SHOULDER_NORMAL : 0
+    this._shoulderX += (targetShoulder - this._shoulderX) * lerpT
+
+    const focusTarget = target.position.clone().add(this.focusOffset)
     if (!this._focusInitialized) {
-      this._smoothedFocus.copy(targetFocus)
+      this._smoothedFocus.copy(focusTarget)
       this._focusInitialized = true
     }
-    this._smoothedFocus.lerp(targetFocus, 1 - Math.pow(1 - this.focusSmoothFactor, delta * 60))
+    this._smoothedFocus.lerp(focusTarget, 1 - Math.pow(1 - this.focusSmoothFactor, delta * 60))
 
     const sinYaw   = Math.sin(this.yaw)
     const cosYaw   = Math.cos(this.yaw)
     const sinPitch = Math.sin(this.pitch)
     const cosPitch = Math.cos(this.pitch)
+
+    // Vetor right da câmera (perpendicular ao yaw, horizontal)
+    const rightX = Math.cos(this.yaw)
+    const rightZ = -Math.sin(this.yaw)
+
+    // Focus com shoulder offset — ponto que a câmera mira
+    const focusWithShoulder = this._smoothedFocus.clone()
+    focusWithShoulder.x += rightX * this._shoulderX
+    focusWithShoulder.z += rightZ * this._shoulderX
 
     const offset = new Vector3(
       sinYaw  * cosPitch * this.distance,
@@ -179,7 +268,8 @@ export class Camera {
       cosYaw  * cosPitch * this.distance
     )
 
-    let desiredPos = this._smoothedFocus.clone().add(offset)
+    // Posição da câmera também deslocada lateralmente
+    let desiredPos = focusWithShoulder.clone().add(offset)
 
     // Colisão câmera ↔ terreno
     if (this._collisionMeshes.length > 0) {
@@ -215,7 +305,7 @@ export class Camera {
     }
 
     this.perspectiveCamera.position.lerp(desiredPos, 1 - Math.pow(1 - this.positionSmoothFactor, delta * 60))
-    this.perspectiveCamera.lookAt(this._smoothedFocus)
+    this.perspectiveCamera.lookAt(focusWithShoulder)
   }
 }
 

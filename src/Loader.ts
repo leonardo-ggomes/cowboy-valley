@@ -9,6 +9,8 @@ class Loader {
     globalAnimations: { [key: string]: AnimationClip } = {}
 
     private _screen: LoadingScreen
+    private _allReady = false   // true quando manager.onLoad disparar
+    private _readyCallbacks: (() => void)[] = []
 
     constructor() {
         this.manager    = new LoadingManager()
@@ -24,9 +26,28 @@ class Loader {
         this.loadGlobalAnimations()
     }
 
+    // Cria um GLTFLoader vinculado ao mesmo LoadingManager.
+    // Usar em vez de 'new GLTFLoader()' para que os assets sejam
+    // contabilizados na barra de progresso e no onLoad global.
+    createGLTFLoader(): GLTFLoader {
+        const l = new GLTFLoader(this.manager)
+        l.setDRACOLoader(this.dracoLoader)
+        return l
+    }
+
+    // Registra um callback para quando TODOS os assets estiverem prontos.
+    // Se já estiver pronto, chama imediatamente.
+    onAllReady(cb: () => void) {
+        if (this._allReady) { cb(); return }
+        this._readyCallbacks.push(cb)
+    }
+
     start(callback: () => void) {
-        // Registra o callback que será chamado ao clicar em "Iniciar"
-        this._screen.onStart(callback)
+        // O botão Iniciar só chama o callback quando todos os assets
+        // estiverem prontos — evita T-pose e cena em branco
+        this._screen.onStart(() => {
+            this.onAllReady(callback)
+        })
 
         // Conecta o LoadingManager à barra de progresso
         this.manager.onProgress = (_url, loaded, total) => {
@@ -34,10 +55,13 @@ class Loader {
             this._screen.setProgress(pct)
         }
 
-        // Quando todos os assets carregarem, passa para 100%
-        // (a transição para a tela de comandos é gerenciada por LoadingScreen)
+        // Quando TODOS os assets carregarem (incluindo cactos, wolves, player)
+        // seta progresso 100% e habilita o botão Iniciar
         this.manager.onLoad = () => {
             this._screen.setProgress(100)
+            this._allReady = true
+            this._readyCallbacks.forEach(cb => cb())
+            this._readyCallbacks = []
         }
 
         // Erro de asset — mostra na mensagem mas não bloqueia

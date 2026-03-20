@@ -46,6 +46,7 @@ import {
   Vector3,
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import type Loader    from './Loader'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AREIA SHADER — animada por uTime, zero CPU por frame
@@ -153,7 +154,10 @@ export class MainScene {
     // Meshes de props sólidos — usados pela colisão horizontal do player
     propMeshes: Mesh[] = []
 
-    constructor() {
+    private _loader: Loader | null = null
+
+    constructor(loader?: Loader) {
+        this._loader = loader ?? null
         this.scene = new Scene()
         this.scene.background = new Color(0xb87840)
         // FogExp2: cor quente âmbar, densidade baixa = visibilidade boa mas horizonte queima
@@ -367,7 +371,7 @@ export class MainScene {
         const TOTAL    = 54
         const SPREAD   = 180
         const MIN_DIST = 12
-        const loader   = new GLTFLoader()
+        const loader   = this._loader?.createGLTFLoader() ?? new GLTFLoader()
 
         type CPos = { x: number; z: number; scale: number; rot: number }
 

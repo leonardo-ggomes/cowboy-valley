@@ -16,7 +16,7 @@ export class Crosshair {
     aimScreenY = window.innerHeight / 2
 
     // Config
-    private readonly MAX_RANGE  = 140   // raio máximo do centro (px)
+    readonly MAX_RANGE  = 140   // raio máximo do centro (px)
     private readonly LERP_SPEED = 18    // velocidade de suavização (maior = mais rápido)
     private readonly DOT_R      = 2.5
     private readonly RING_R     = 8
@@ -41,6 +41,7 @@ export class Crosshair {
 
     // Estado
     private _armed         = false
+    private _orbiting      = false   // botão direito pressionado
     private _spread        = 0
     private _targetSpread  = 0
     private _reloading     = false
@@ -49,8 +50,8 @@ export class Crosshair {
     private _pulseTimer    = 0
 
     // Posição atual da mira (suavizada, em px relativo ao centro)
-    private _currentX = 0
-    private _currentY = 0
+    currentX = 0   // posição atual da mira relativa ao centro (px)
+    currentY = 0
 
     // Target bruto do mouse (em px relativo ao centro)
     private _targetX  = 0
@@ -94,6 +95,8 @@ export class Crosshair {
         // para a câmera girar proporcionalmente.
         document.addEventListener('mousemove', (e: MouseEvent) => {
             if (!document.pointerLockElement) return
+            // Não acumula quando isOrbiting — câmera controla diretamente
+            if (this._orbiting) return
             this._targetX += e.movementX
             this._targetY += e.movementY
         })
@@ -178,11 +181,25 @@ export class Crosshair {
 
     // ── API pública ───────────────────────────────────────────────────────
 
+    setOrbiting(v: boolean) {
+        this._orbiting = v
+        if (v) {
+            // Zera acúmulo e overshoot ao entrar no modo órbita
+            this._targetX   = 0
+            this._targetY   = 0
+            this.currentX  = 0
+            this.currentY  = 0
+            this.overshootX = 0
+            this.overshootY = 0
+            this._updateDOMPosition()
+        }
+    }
+
     resetToCenter() {
         this._targetX  = 0
         this._targetY  = 0
-        this._currentX = 0
-        this._currentY = 0
+        this.currentX = 0
+        this.currentY = 0
         this._updateDOMPosition()
     }
 
@@ -190,7 +207,7 @@ export class Crosshair {
         this._armed = armed
         this.root.style.opacity = armed ? '1' : '0'
         if (!armed) {
-            this._currentX = 0; this._currentY = 0
+            this.currentX = 0; this.currentY = 0
             this._targetX  = 0; this._targetY  = 0
             this._updateDOMPosition()
         }
@@ -219,25 +236,25 @@ export class Crosshair {
 
         if (dist <= this.MAX_RANGE) {
             // Dentro do raio — mira livre, câmera parada
-            this._currentX   = this._targetX
-            this._currentY   = this._targetY
+            this.currentX   = this._targetX
+            this.currentY   = this._targetY
             this.overshootX  = 0
             this.overshootY  = 0
         } else {
             // Fora do raio — mira trava na borda, excesso vai para câmera
             const scale      = this.MAX_RANGE / dist
-            this._currentX   = this._targetX * scale
-            this._currentY   = this._targetY * scale
+            this.currentX   = this._targetX * scale
+            this.currentY   = this._targetY * scale
             // Overshoot normalizado: quanto além do raio (0..N px/frame)
-            this.overshootX  = this._targetX - this._currentX
-            this.overshootY  = this._targetY - this._currentY
+            this.overshootX  = this._targetX - this.currentX
+            this.overshootY  = this._targetY - this.currentY
             // Mantém o target clampado para não acumular infinitamente
-            this._targetX    = this._currentX
-            this._targetY    = this._currentY
+            this._targetX    = this.currentX
+            this._targetY    = this.currentY
         }
 
-        this.aimScreenX = window.innerWidth  / 2 + this._currentX
-        this.aimScreenY = window.innerHeight / 2 + this._currentY
+        this.aimScreenX = window.innerWidth  / 2 + this.currentX
+        this.aimScreenY = window.innerHeight / 2 + this.currentY
         this._updateDOMPosition()
 
         // ── 2. Spread ─────────────────────────────────────────────────────
@@ -287,8 +304,8 @@ export class Crosshair {
     private _updateDOMPosition() {
         const cx = window.innerWidth  / 2
         const cy = window.innerHeight / 2
-        this.root.style.left = `${Math.round(cx + this._currentX - this.SIZE / 2)}px`
-        this.root.style.top  = `${Math.round(cy + this._currentY - this.SIZE / 2)}px`
+        this.root.style.left = `${Math.round(cx + this.currentX - this.SIZE / 2)}px`
+        this.root.style.top  = `${Math.round(cy + this.currentY - this.SIZE / 2)}px`
     }
 
     private _setLine(idx: number, x1: number, y1: number, x2: number, y2: number) {

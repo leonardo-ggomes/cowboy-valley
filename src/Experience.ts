@@ -93,14 +93,14 @@ class Experience {
 
     this.loader     = new Loader()
     this.camera     = new Camera()
-    this.mainScene  = new MainScene()
+    this.mainScene  = new MainScene(this.loader)
     this.renderer   = new Renderer(this.camera, this.mainScene)
     this.player     = new Player(this.loader)
     this.npcManager = new NPCManager(this.loader)
     this.hud        = new HUD()
     this.crosshair  = new Crosshair()
     this.pauseMenu  = new PauseMenu()
-    this.wolfManager = new WolfManager(this.mainScene.scene)
+    this.wolfManager = new WolfManager(this.mainScene.scene, this.loader)
 
     // Terreno procedural — retorna meshes de colisão
     this.collisionMeshes = this.mainScene.buildTerrain()
@@ -140,6 +140,7 @@ class Experience {
     this.player.onArmedChange = (isArmed) => {
       this.hud.notify('Armamento', isArmed ? 'Arma equipada' : 'Arma guardada')
       this.crosshair.setArmed(isArmed)
+      this.camera.setArmed(isArmed)
     }
 
     // Muzzle flash → pulsa a mira
@@ -177,9 +178,23 @@ class Experience {
     window.addEventListener('mousedown', (e) => {
       if (e.button === 0 && this.player.states.isArmed)
         this.player.isShooting = true
+      if (e.button === 2) {
+        if (this.player.states.isArmed) {
+          // Armado + botão direito = aim mode
+          this.camera.setAiming(true)
+          this.crosshair.setOrbiting(false)  // mira livre no aim mode
+        } else {
+          // Desarmado + botão direito = órbita
+          this.crosshair.setOrbiting(true)
+        }
+      }
     })
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('mouseup', (e) => {
       this.player.isShooting = false
+      if (e.button === 2) {
+        this.camera.setAiming(false)
+        this.crosshair.setOrbiting(false)
+      }
     })
     // Bloqueia menu de contexto — segunda camada (Camera.ts já faz isso)
     window.addEventListener('contextmenu', e => e.preventDefault())
@@ -535,7 +550,16 @@ class Experience {
     this.npcManager.update(delta)
     this.mainScene.updateWind(delta)
     // Overshoot da mira → gira a câmera quando mira bate na borda
-    this.camera.applyOvershoot(this.crosshair.overshootX, this.crosshair.overshootY)
+    // No aim mode a mira segue o mouse com mais precisão
+    // (câmera já está perto, FOV menor = mais preciso)
+    this.camera.applyOvershoot(
+      this.crosshair.currentX,
+      this.crosshair.currentY,
+      this.crosshair.MAX_RANGE,
+      this.crosshair.overshootX,
+      this.crosshair.overshootY,
+      delta
+    )
     this.camera.update(this.player, delta)
     this.crosshair.update(delta)
 

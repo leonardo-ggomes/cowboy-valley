@@ -40,6 +40,7 @@ import {
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { heightAt }   from './MainScene'
+import type Loader    from './Loader'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NOMES DE ANIMAÇÃO — TROCAR APÓS DEBUGAR O GLB
@@ -136,6 +137,7 @@ export class Wolf extends Object3D {
     private currentState:   WolfState = 'idle'
 
     private _scene:         Scene | null = null
+    private _gltfLoader:   GLTFLoader | null = null
     private _state:         WolfState = 'idle'
     private _stateTimer     = 0
     private _attackTimer    = 0
@@ -162,11 +164,12 @@ export class Wolf extends Object3D {
     private _isDead     = false    // morto mas aguardando pickup
     private _deadTimer  = 0        // tempo desde a morte
 
-    constructor(scene: Scene, position: Vector3, callbacks: WolfCallbacks) {
+    constructor(scene: Scene, position: Vector3, callbacks: WolfCallbacks, loader?: Loader) {
         super()
-        this._scene  = scene
-        this._origin = position.clone()
-        this._cbs    = callbacks
+        this._scene      = scene
+        this._origin     = position.clone()
+        this._cbs        = callbacks
+        this._gltfLoader = loader?.createGLTFLoader() ?? new GLTFLoader()
 
         this.position.copy(position)
         this._generateWaypoints()
@@ -175,7 +178,7 @@ export class Wolf extends Object3D {
 
     // ── Carrega o GLB ─────────────────────────────────────────────────────
     private _load() {
-        const loader = new GLTFLoader()
+        const loader = this._gltfLoader ?? new GLTFLoader()
         loader.load('/models/npc/npc_1.glb', (gltf) => {
             const model = gltf.scene
             model.scale.set(0.01, 0.01, 0.01)
