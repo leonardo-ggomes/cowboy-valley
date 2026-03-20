@@ -11,6 +11,7 @@ import { Camera, Mesh, Scene, Vector3 } from 'three'
 import { Wolf } from './Wolf'
 import type Loader from './Loader'
 import { heightAt } from './MainScene'
+import type { SurvivalSystem } from './SurvivalSystem'
 
 // ── Config ────────────────────────────────────────────────────────────────
 const INITIAL_COUNT  = 8     // lobos ao iniciar
@@ -88,13 +89,19 @@ export class WolfManager {
     }
 
     // ── Update ────────────────────────────────────────────────────────────
-    update(delta: number, playerPos: Vector3, onTreasurePickup: (wolfIdx: number) => void, camera?: Camera) {
-        // Remove lobos totalmente finalizados (mortos + tesouro coletado)
+    update(delta: number, playerPos: Vector3, onTreasurePickup: (wolfIdx: number) => void, camera?: Camera, survival?: SurvivalSystem) {
+        // Remove lobos totalmente finalizados
         this.wolves = this.wolves.filter(w => w.isAlive || w['_treasureAlive'] || w['_isDead'])
 
-        // Atualiza cada lobo vivo
+        // Atualiza cada lobo — bloqueia na borda da zona segura
         for (let i = this.wolves.length - 1; i >= 0; i--) {
-            this.wolves[i].update(delta, playerPos, () => onTreasurePickup(i), camera)
+            const wolf = this.wolves[i]
+            // Se cabana completa e lobo dentro da zona, empurra para fora
+            if (survival?.shouldWolfStop(wolf.position)) {
+                wolf['_setState']?.('idle')
+                continue
+            }
+            wolf.update(delta, playerPos, () => onTreasurePickup(i), camera)
         }
 
         // ── Verifica se precisa de reforços ───────────────────────────────

@@ -31,6 +31,7 @@ import Stats          from 'three/examples/jsm/libs/stats.module.js'
 import NPCManager     from './NPCManager'
 import { HUD, HUDState } from './HUD'
 import { WolfManager }    from './WolfManager'
+import { SurvivalSystem }  from './SurvivalSystem'
 import { Crosshair }       from './Crosshair'
 import { PauseMenu }       from './PauseMenu'
 
@@ -60,11 +61,13 @@ class Experience {
   player:      Player
   loader:      Loader
   npcManager:  NPCManager
-  wolfManager: WolfManager
+  wolfManager:    WolfManager
+  survival:       SurvivalSystem
   hud:         HUD
   crosshair:   Crosshair
   pauseMenu:   PauseMenu
   private _isPaused = false
+  private _buildKeyPressed = false
 
   collisionMeshes: Mesh[]  = []   // terreno — colisão vertical
   propMeshes:      Mesh[]  = []   // props — colisão horizontal
@@ -101,6 +104,7 @@ class Experience {
     this.crosshair  = new Crosshair()
     this.pauseMenu  = new PauseMenu()
     this.wolfManager = new WolfManager(this.mainScene.scene, this.loader)
+    this.survival    = new SurvivalSystem(this.mainScene.scene)
 
     // Terreno procedural — retorna meshes de colisão
     this.collisionMeshes = this.mainScene.buildTerrain()
@@ -114,11 +118,12 @@ class Experience {
       (damage) => {
         playerHealth = Math.max(0, playerHealth - damage)
         this.hud.flashDamage()
-        this.hud.notify('Ataque!', `Lobo causou ${damage} de dano`)
+        this.hud.notify('Ataque!', `Lobo causou ${damage} de dano`, `-${damage}`)
         this.camera.shake(0.2)
+        this.player.playHit()   // toca animação de hit no cowboy
       },
-      (pos, idx) => {
-        console.log(`[Wolf ${idx}] morreu em`, pos)
+      (_pos, _idx) => {
+        this.survival.onWolfKilled()
       }
     )
     this.player.position.set(0, 3, 0)
@@ -138,7 +143,7 @@ class Experience {
 
     // Tecla P continua funcionando e também notifica o HUD
     this.player.onArmedChange = (isArmed) => {
-      this.hud.notify('Armamento', isArmed ? 'Arma equipada' : 'Arma guardada')
+      this.hud.notify(isArmed ? 'Arma equipada' : 'Arma guardada', isArmed ? 'Shotgun pronta' : 'Guardada nas costas')
       this.crosshair.setArmed(isArmed)
       this.camera.setArmed(isArmed)
     }
@@ -201,6 +206,7 @@ class Experience {
 
     window.addEventListener('keydown', (e) => {
       this.keysPressed.add(e.key.toLowerCase())
+      if (e.key.toLowerCase() === 'e') this._buildKeyPressed = true
       // Debug keys
       if (e.key === 'g') { playerMoney  += 200;                       this.hud.notify('Dinheiro',  '+$200 coletado') }
       if (e.key === 'h') { playerHealth  = Math.max(0, playerHealth - 20); this.hud.flashDamage(); this.hud.notify('Dano', 'Você foi atingido!') }
@@ -543,10 +549,27 @@ class Experience {
     const wolfMeshes = this.wolfManager.collectMeshes()
     this.player.update(delta, wolfMeshes)
     this.wolfManager.update(delta, this.player.position, (wolfIdx) => {
-      // Tesouro coletado
       playerMoney += 150
-      this.hud.notify('Tesouro!', '+$150 recompensa do lobo')
-    })
+      this.hud.notify('Tesouro!', 'Recompensa do lobo', '+$150')
+    }, this.camera.perspectiveCamera, this.survival)
+
+    // ── Survival system ────────────────────────────────────────────────
+    const isRunningSurvival = this.keysPressed.has('shift') && this.keysPressed.has('w')
+    this.survival.update(
+      delta,
+      this.player.position,
+      isRunningSurvival,
+      this.player.isShooting,
+      this.camera.perspectiveCamera,
+      (dmg: number) => {
+        playerHealth = Math.max(0, playerHealth - dmg)
+        if (playerHealth <= 0) this.hud.notify('💀 Fome!', 'Cace um lobo para sobreviver')
+        else if (this.survival.hunger < 20) this.hud.flashDamage()
+      },
+      this._buildKeyPressed
+    )
+    this._buildKeyPressed = false
+
     this.npcManager.update(delta)
     this.mainScene.updateWind(delta)
     // Overshoot da mira → gira a câmera quando mira bate na borda

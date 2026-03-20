@@ -54,9 +54,11 @@ export class HUD {
   private missionObj!: HTMLDivElement
   private missionBarFill!: HTMLDivElement
   private minimapCtx!: CanvasRenderingContext2D
-  private notifWrap!: HTMLDivElement
+  private notifWrap!:  HTMLDivElement
   private notifTitle!: HTMLDivElement
-  private notifBody!: HTMLDivElement
+  private notifBody!:  HTMLDivElement
+  private notifBadge!: HTMLDivElement
+  private notifIcon!:  HTMLDivElement
 
   // Radial
   private radialOverlay!: HTMLDivElement
@@ -172,10 +174,39 @@ export class HUD {
 #hud-dmg.hit{background:radial-gradient(ellipse at center,transparent 25%,rgba(180,20,20,.55) 100%);}
 
 /* notification */
-#hud-notif{position:absolute;bottom:50px;left:18px;background:rgba(0,0,0,.75);border-left:3px solid var(--gg);padding:8px 14px;max-width:250px;opacity:0;transition:opacity .25s;}
-#hud-notif.show{opacity:1;}
-#hn-title{font-size:12px;font-weight:700;color:var(--gw);}
-#hn-body{font-size:11px;color:var(--gm);margin-top:2px;line-height:1.4;}
+#hud-notif{
+  position:absolute;bottom:60px;left:18px;
+  background:#1a1208;
+  border:1px solid rgba(200,144,26,0.4);
+  border-left:4px solid #e8c060;
+  border-radius:0 4px 4px 0;
+  padding:10px 12px 10px 10px;
+  max-width:280px;
+  display:flex;align-items:center;gap:10px;
+  opacity:0;transform:translateX(-12px);
+  transition:opacity .25s ease,transform .25s ease;
+  pointer-events:none;
+}
+#hud-notif.show{opacity:1;transform:translateX(0);}
+#hn-icon{
+  width:32px;height:32px;min-width:32px;
+  border-radius:50%;
+  background:rgba(200,144,26,0.15);
+  border:1px solid rgba(200,144,26,0.35);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+#hn-icon svg{width:15px;height:15px;}
+#hn-content{flex:1;min-width:0;}
+#hn-title{font-size:12px;font-weight:700;color:#e8c060;letter-spacing:.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#hn-body{font-size:10px;color:rgba(200,180,120,0.6);margin-top:2px;line-height:1.4;letter-spacing:.3px;}
+#hn-badge{
+  font-size:11px;font-weight:700;
+  color:#0d0a06;background:#e8c060;
+  border-radius:2px;padding:2px 7px;
+  white-space:nowrap;flex-shrink:0;
+  display:none;
+}
 
 /* ── RADIAL MENU MODERNO ── */
 #hud-radial{
@@ -367,13 +398,26 @@ export class HUD {
 
     // Crosshair removida — gerenciada por Crosshair.ts
 
-    // Notif
+    // Notif — Opção A: banner lateral com ícone + badge
     const notif = document.createElement('div'); notif.id = 'hud-notif'
-    notif.innerHTML = `<div id="hn-title"></div><div id="hn-body"></div>`
+    notif.innerHTML = `
+      <div id="hn-icon">
+        <svg viewBox="0 0 16 16" fill="none">
+          <path d="M8 2L9.5 6H14L10.5 8.5L12 13L8 10.5L4 13L5.5 8.5L2 6H6.5Z" fill="#e8c060"/>
+        </svg>
+      </div>
+      <div id="hn-content">
+        <div id="hn-title"></div>
+        <div id="hn-body"></div>
+      </div>
+      <div id="hn-badge"></div>
+    `
     root.appendChild(notif)
     this.notifWrap  = notif
-    this.notifTitle = document.getElementById('hn-title')! as HTMLDivElement
-    this.notifBody  = document.getElementById('hn-body')!  as HTMLDivElement
+    this.notifTitle = notif.querySelector('#hn-title')!  as HTMLDivElement
+    this.notifBody  = notif.querySelector('#hn-body')!   as HTMLDivElement
+    this.notifBadge = notif.querySelector('#hn-badge')!  as HTMLDivElement
+    this.notifIcon  = notif.querySelector('#hn-icon')!   as HTMLDivElement
 
     this.buildRadial()
   }
@@ -690,8 +734,37 @@ export class HUD {
     ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fill(); ctx.restore()
   }
 
-  notify(title: string, body = '', duration = 2800) {
-    this.notifTitle.textContent = title; this.notifBody.textContent = body
+  /**
+   * Exibe notificação estilo banner lateral (Opção A).
+   * @param title  Título em destaque dourado
+   * @param body   Subtexto descritivo
+   * @param badge  Texto do badge direito (ex: '+35', '1/3'). Omitir para esconder.
+   * @param icon   SVG path do ícone central. Omitir para usar estrela padrão.
+   * @param duration ms visível (padrão 2800)
+   */
+  notify(title: string, body = '', badge = '', icon = '', duration = 2800) {
+    this.notifTitle.textContent = title
+    this.notifBody.textContent  = body
+
+    // Badge
+    if (badge) {
+      this.notifBadge.textContent   = badge
+      this.notifBadge.style.display = 'block'
+    } else {
+      this.notifBadge.style.display = 'none'
+    }
+
+    // Ícone customizado
+    if (icon) {
+      this.notifIcon.innerHTML = `<svg viewBox="0 0 16 16" fill="none">${icon}</svg>`
+    } else {
+      this.notifIcon.innerHTML = `<svg viewBox="0 0 16 16" fill="none">
+        <path d="M8 2L9.5 6H14L10.5 8.5L12 13L8 10.5L4 13L5.5 8.5L2 6H6.5Z" fill="#e8c060"/>
+      </svg>`
+    }
+
+    this.notifWrap.classList.remove('show')
+    void (this.notifWrap as any).offsetWidth   // force reflow para reiniciar transição
     this.notifWrap.classList.add('show')
     clearTimeout((this.notifWrap as any)._t)
     ;(this.notifWrap as any)._t = setTimeout(() => this.notifWrap.classList.remove('show'), duration)

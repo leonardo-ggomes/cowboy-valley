@@ -244,8 +244,16 @@ class Player extends Object3D {
                 })
                 this.add(this.model)
                 this.mixer = new AnimationMixer(this.model)
-                for (const key in this.loader.globalAnimations)
-                    this.clips[key] = this.mixer.clipAction(this.loader.globalAnimations[key])
+                for (const key in this.loader.globalAnimations) {
+                    const clip = this.loader.globalAnimations[key]
+                    // Remove tracks que referenciam bones inexistentes no modelo
+                    // (ex: bones "_end" exportados pelo Mixamo que não existem aqui)
+                    clip.tracks = clip.tracks.filter(track => {
+                        const boneName = track.name.split('.')[0]
+                        return this.model!.getObjectByName(boneName) !== undefined
+                    })
+                    this.clips[key] = this.mixer.clipAction(clip)
+                }
                 if (gltf.animations.length > 0)
                     this.clips['Idle'] = this.mixer.clipAction(gltf.animations[0])
                 this.setState('Idle', 1.0)
@@ -618,6 +626,39 @@ class Player extends Object3D {
         scene.add(this._smokePoints)
         for (const b of this.bulletPool) scene.add(b.mesh)
         for (const m of this._impactPool) scene.add(m)
+    }
+
+    // ── Animação de hit (lobo atacou o player) ───────────────────────────
+    // Toca Hit (LoopOnce) e volta ao estado anterior automaticamente.
+    // Não interrompe FireRifle — prioridade de tiro é maior.
+    playHit() {
+        if (this.currentState === 'FireRifle') return   // atirando — não interrompe
+        if (this.currentState === 'Hit') return          // já tocando
+
+        const action = this.clips['Hit']
+        if (!action) return
+
+        const prevState  = this.currentState
+        const prevAction = this.currentAction
+
+        if (prevAction) prevAction.fadeOut(0.1)
+
+        action.setLoop(LoopOnce, 1)
+        action.clampWhenFinished = true
+        action.timeScale = 1.0
+        action.reset().fadeIn(0.1).play()
+        this.currentAction = action
+        this.currentState  = 'Hit'
+
+        // Volta ao estado anterior quando terminar
+        const onFinished = (e: any) => {
+            if (e.action !== action) return
+            this.mixer.removeEventListener('finished', onFinished)
+            // Volta ao idle correto
+            this.currentState = ''   // força reset do guard no setState
+            this.setState(this.states.isArmed ? 'IdleRifle' : 'Idle', 1.0)
+        }
+        this.mixer?.addEventListener('finished', onFinished)
     }
 
     // ── setState ──────────────────────────────────────────────────────────
