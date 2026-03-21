@@ -70,7 +70,7 @@ syncVisualWithYuka = (entity: GameEntity, renderComponent: Object3D) => {
 
     if (dist < attackRange) {
       // Aqui você pode ativar o ataque (chamar método do NPC)
-      this.npc.attack();
+      // this.npc.attack();
     } else if (dist < detectionRange) {
       // Persegue o jogador
       this.followPlayer(playerPosition);

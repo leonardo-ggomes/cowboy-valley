@@ -11,6 +11,7 @@
   "devDependencies": {
     "@types/three": "^0.176.0",
     "@types/three-nebula": "^10.0.5",
+    "@types/yuka": "^0.7.4",
     "typescript": "~5.7.2",
     "vite": "^6.3.1"
   },
@@ -18,6 +19,7 @@
     "@dimforge/rapier3d-compat": "^0.16.0",
     "three": "^0.176.0",
     "three-mesh-bvh": "^0.9.0",
-    "three-nebula": "^10.0.3"
+    "three-nebula": "^10.0.3",
+    "yuka": "^0.7.8"
   }
 }

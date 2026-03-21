@@ -131,7 +131,7 @@ class Experience {
     this.player.setScene(this.mainScene.scene)
 
     // Radial → arma/desarma o player automaticamente
-    this.hud.onItemSelect = (item, isRanged) => {
+    this.hud.onItemSelect = (_item, isRanged) => {
       if (isRanged) {
         // Item com munição = arma de fogo → armar
         if (!this.player.states.isArmed) this.player.setArmed(true)
@@ -548,7 +548,7 @@ class Experience {
     // Wolves: collectMeshes para raycasting de bala + update da IA
     const wolfMeshes = this.wolfManager.collectMeshes()
     this.player.update(delta, wolfMeshes)
-    this.wolfManager.update(delta, this.player.position, (wolfIdx) => {
+    this.wolfManager.update(delta, this.player.position, (_wolfIdx) => {
       playerMoney += 150
       this.hud.notify('Tesouro!', 'Recompensa do lobo', '+$150')
     }, this.camera.perspectiveCamera, this.survival)

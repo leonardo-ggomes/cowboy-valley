@@ -95,7 +95,7 @@ class NPC extends Object3D {
         }, 3000);
     }
 
-    updateBehavior(delta: number) {
+    updateBehavior(_delta: number) {
         if (!this.isAlive) return;
 
         // Futuro: patrulha, fugir, seguir jogador etc.
